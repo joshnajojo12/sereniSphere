@@ -6,7 +6,7 @@ export default function EmotionDetector({ kit }) {
   const [emotion, setEmotion] = useState("😐 Waiting...");
   const [activated, setActivated] = useState(false);
   const [evaluation, setEvaluation] = useState({});
-  const historyRef = useRef([]); // store last few frames
+  const historyRef = useRef([]);
 
   // Emoji mapping
   const emotionEmoji = {
@@ -63,11 +63,9 @@ export default function EmotionDetector({ kit }) {
         const expressions = detections.expressions;
         setEvaluation(expressions);
 
-        // Add to rolling history (last 5 frames)
         historyRef.current.push(expressions);
         if (historyRef.current.length > 5) historyRef.current.shift();
 
-        // Average over last frames
         const avg = {};
         for (let emo in expressions) {
           avg[emo] =
@@ -75,25 +73,19 @@ export default function EmotionDetector({ kit }) {
             historyRef.current.length;
         }
 
-        // Pick best emotion
         let bestEmotion = Object.entries(avg).reduce(
           (a, b) => (a[1] > b[1] ? a : b)
         )[0];
 
-        // --- Smarter bias for sadness ---
-        if (
-          avg.sad > 0.2 && // lower threshold
-          avg.sad >= avg.neutral * 0.9 && // allow close to neutral
-          avg.sad > avg.happy
-        ) {
+        // Improved sadness check
+        if (avg.sad > 0.2 && avg.sad > avg.happy && avg.sad >= avg.neutral * 0.9) {
           bestEmotion = "sad";
         }
 
-        setEmotion(`${emotionEmoji[bestEmotion] || ""} ${bestEmotion}`);
+        setEmotion(`${emotionEmoji[bestEmotion]} ${bestEmotion}`);
 
-        // Trigger comfort kit once
         if (bestEmotion === "sad" && !activated) {
-          activateComfortKit();
+          activateComfortKit(bestEmotion);
           setActivated(true);
         }
       }
@@ -103,8 +95,18 @@ export default function EmotionDetector({ kit }) {
   };
 
   // Activate comfort kit
-  const activateComfortKit = () => {
-    console.log("🎭 Sad detected → Activating Comfort Kit");
+  const activateComfortKit = (emo) => {
+    console.log(`🎭 ${emo} detected → Activating Comfort Kit`);
+
+    if (emo === "sad") {
+      alert("🌬️ Take deep breaths: Inhale... Exhale...");
+    }
+    if (emo === "happy") {
+      alert("🌟 Keep smiling, you're doing great!");
+    }
+    if (emo === "angry") {
+      alert("💆 Try a short relaxation exercise.");
+    }
 
     if (kit.music) {
       const audio = new Audio(`/music/${kit.music}.mp3`);
@@ -116,22 +118,16 @@ export default function EmotionDetector({ kit }) {
       document.body.style.backgroundSize = "cover";
       document.body.style.backgroundPosition = "center";
     }
+  };
 
-    if (kit.activity === "Meditation / Journaling") {
-      alert("🧘 Time for a meditation session.");
-    } else if (kit.activity === "Games / Puzzles") {
-      alert("🧩 Try a quick puzzle to distract your mind.");
-    }
+  // Manual emotion selection
+  const handleManualSelect = (e) => {
+    const selected = e.target.value;
+    if (!selected) return;
 
-    if (kit.support === "Breathing exercise") {
-      alert("🌬️ Take deep breaths: Inhale... Exhale...");
-    } else if (kit.support === "Affirmations / Quotes") {
-      alert("💡 You are stronger than you think!");
-    }
-
-    if (kit.anchor) {
-      alert(`📷 Anchor Reminder: ${kit.anchor}`);
-    }
+    setEmotion(`${emotionEmoji[selected]} ${selected}`);
+    activateComfortKit(selected);
+    setActivated(true);
   };
 
   return (
@@ -151,6 +147,19 @@ export default function EmotionDetector({ kit }) {
       <p className="mt-4 text-xl">
         Detected Emotion: <span className="font-bold">{emotion}</span>
       </p>
+
+      {/* Manual Backup */}
+      <div className="mt-4">
+        <label className="mr-2 font-medium">🎛️ Or select manually:</label>
+        <select onChange={handleManualSelect} className="p-2 border rounded shadow">
+          <option value="">-- Pick your mood --</option>
+          {Object.keys(emotionEmoji).map((emo) => (
+            <option key={emo} value={emo}>
+              {emotionEmoji[emo]} {emo}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {activated && (
         <p className="mt-6 text-green-600 font-semibold text-lg">

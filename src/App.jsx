@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as faceapi from "face-api.js";
+import StressReliefZone from "./StressReliefZone.jsx";  // stress relief page
 
 export default function App() {
   const [form, setForm] = useState({
@@ -15,10 +16,12 @@ export default function App() {
   const [emotion, setEmotion] = useState("neutral");
   const [confidence, setConfidence] = useState("Analyzing...");
   const [activated, setActivated] = useState(false);
+  const [manualMode, setManualMode] = useState(""); // dropdown state
 
   const videoRef = useRef();
+  const intervalRef = useRef();
 
-  // 1️⃣ Load face-api models
+  // Load face-api models
   useEffect(() => {
     const loadModels = async () => {
       await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
@@ -28,7 +31,7 @@ export default function App() {
     loadModels();
   }, []);
 
-  // 2️⃣ Start webcam
+  // Start webcam
   const startVideo = () => {
     navigator.mediaDevices
       .getUserMedia({ video: true })
@@ -38,9 +41,11 @@ export default function App() {
       .catch((err) => console.error("Camera error:", err));
   };
 
-  // 3️⃣ Detect facial emotion
+  // Detect facial emotion
   const handleVideoPlay = () => {
-    setInterval(async () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+
+    intervalRef.current = setInterval(async () => {
       if (!videoRef.current) return;
 
       const detections = await faceapi
@@ -60,7 +65,12 @@ export default function App() {
     }, 2000);
   };
 
-  // 4️⃣ Voice confidence detection
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => clearInterval(intervalRef.current);
+  }, []);
+
+  // Voice confidence detection
   useEffect(() => {
     if (!preview) return;
 
@@ -85,13 +95,11 @@ export default function App() {
         .map((result) => result[0].transcript)
         .join(" ");
 
-      // detect pauses
       const now = Date.now();
       const gap = (now - lastTimestamp) / 1000;
       if (gap > 2) pauseCount++;
       lastTimestamp = now;
 
-      // words per minute
       const words = text.split(" ").filter((w) => w.length > 0);
       const wpm = (words.length / ((now - startTime) / 60000)).toFixed(1);
 
@@ -109,70 +117,15 @@ export default function App() {
     return () => recognition.stop();
   }, [preview]);
 
-  // 5️⃣ Comfort kit trigger (sad OR low confidence)
+  // Comfort kit trigger
   useEffect(() => {
     const lowConfidence = confidence.includes("Low");
 
     if ((emotion === "sad" || lowConfidence) && !activated) {
       setActivated(true);
-
-      // Music
-      if (form.music) {
-        let audioFile = "";
-        if (form.music === "Soft piano or guitar") audioFile = "/sounds/piano.mp3";
-        if (form.music === "Rain / Ocean waves") audioFile = "/sounds/rain.mp3";
-        if (form.music === "Uplifting playlist") audioFile = "/sounds/uplift.mp3";
-
-        if (audioFile) {
-          const audio = new Audio(audioFile);
-          audio.play().catch((e) => console.error("Autoplay error:", e));
-        }
-      }
-
-      // Visuals
-      if (form.visual) {
-        let bgImage = "";
-        if (form.visual === "Nature (trees, water, sky)") bgImage = "/visuals/nature.jpg";
-        if (form.visual === "Space / Stars") bgImage = "/visuals/space.jpg";
-        if (form.visual === "Cozy room vibes") bgImage = "/visuals/cozy.jpg";
-
-        if (bgImage) {
-          document.body.style.backgroundImage = `url(${bgImage})`;
-          document.body.style.backgroundSize = "cover";
-          document.body.style.backgroundPosition = "center";
-        }
-      }
-
-      // Activities
-      if (form.activity) {
-        if (form.activity === "Meditation / Journaling") {
-          alert("🧘 Time for a meditation or journaling break!");
-        } else if (form.activity === "Games / Puzzles") {
-          alert("🧩 Try a quick puzzle to relax your mind.");
-        } else if (form.activity === "Drawing / Coloring") {
-          alert("🎨 Grab some colors and draw something fun!");
-        } else if (form.activity === "Reading / Story audio") {
-          alert("📖 Relax with a story or audiobook.");
-        }
-      }
-
-      // Support
-      if (form.support) {
-        if (form.support === "Breathing exercise") {
-          alert("🌬️ Inhale deeply... exhale slowly... repeat 5 times.");
-        } else if (form.support === "Comfort chatbot") {
-          alert("💬 Talk to me anytime — I’m here to listen.");
-        } else if (form.support === "Affirmations / Quotes") {
-          alert("💡 Remember: You are stronger than you think!");
-        }
-      }
-
-      // Anchor
-      if (form.anchor) {
-        alert(`📷 Anchor Reminder: ${form.anchor}`);
-      }
+      setManualMode("stress");
     }
-  }, [emotion, confidence, activated, form]);
+  }, [emotion, confidence, activated]);
 
   const handleChange = (field, value) => setForm({ ...form, [field]: value });
 
@@ -182,32 +135,58 @@ export default function App() {
     startVideo();
   };
 
+  // ---------------- MANUAL MODE HANDLER ----------------
+  if (manualMode === "stress") {
+    return <StressReliefZone onExit={() => setManualMode("")} />;
+  }
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 transition-all">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-gradient-to-br from-sky-200 via-pink-100 to-purple-200 text-gray-900">
+      {/* soft background glow */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1 }}
+        className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,rgba(147,197,253,0.4),transparent_70%)]"
+      />
+
       <AnimatePresence mode="wait">
         {!preview ? (
           // ---------------- FORM PAGE ----------------
           <motion.div
             key="form"
-            initial={{ opacity: 0, scale: 0.9, y: 40 }}
+            initial={{ opacity: 0, scale: 0.95, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: -40 }}
+            exit={{ opacity: 0, scale: 0.95, y: -30 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="w-full max-w-2xl bg-white/80 backdrop-blur-md rounded-3xl shadow-2xl p-10"
+            className="w-full max-w-2xl bg-white/70 backdrop-blur-md rounded-3xl shadow-2xl p-10 text-gray-800"
           >
-            <h1 className="text-4xl font-extrabold text-purple-700 mb-4 text-center">
+            <h1 className="text-4xl font-extrabold text-sky-600 mb-4 text-center">
               🌿 Build Your Comfort Kit
             </h1>
-            <p className="text-gray-700 text-center mb-10">
+            <p className="text-gray-600 text-center mb-6">
               Select what makes you feel better, and we’ll use it when you look sad 💜
               or sound unconfident 🎤
             </p>
+
+            {/* Manual Mode Dropdown */}
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold mb-2">🕹 Manual Mode</h2>
+              <select
+                className="w-full p-3 rounded-lg bg-white border border-yellow-400 text-gray-800 focus:ring-2 focus:ring-yellow-300 transition"
+                value={manualMode}
+                onChange={(e) => setManualMode(e.target.value)}
+              >
+                <option value="">Normal (Automatic Detection)</option>
+                <option value="stress">Stress Relief Mode</option>
+              </select>
+            </div>
 
             {/* Music */}
             <div className="mb-8">
               <h2 className="text-xl font-semibold mb-2">🎵 Music & Sounds</h2>
               <select
-                className="w-full p-3 rounded-lg border border-purple-300 focus:ring-2 focus:ring-purple-400 transition"
+                className="w-full p-3 rounded-lg bg-white border border-sky-400 text-gray-800 focus:ring-2 focus:ring-sky-300 transition"
                 value={form.music}
                 onChange={(e) => handleChange("music", e.target.value)}
               >
@@ -222,7 +201,7 @@ export default function App() {
             <div className="mb-8">
               <h2 className="text-xl font-semibold mb-2">🌸 Visuals</h2>
               <select
-                className="w-full p-3 rounded-lg border border-pink-300 focus:ring-2 focus:ring-pink-400 transition"
+                className="w-full p-3 rounded-lg bg-white border border-pink-400 text-gray-800 focus:ring-2 focus:ring-pink-300 transition"
                 value={form.visual}
                 onChange={(e) => handleChange("visual", e.target.value)}
               >
@@ -237,7 +216,7 @@ export default function App() {
             <div className="mb-8">
               <h2 className="text-xl font-semibold mb-2">🎨 Activities</h2>
               <select
-                className="w-full p-3 rounded-lg border border-blue-300 focus:ring-2 focus:ring-blue-400 transition"
+                className="w-full p-3 rounded-lg bg-white border border-blue-400 text-gray-800 focus:ring-2 focus:ring-blue-300 transition"
                 value={form.activity}
                 onChange={(e) => handleChange("activity", e.target.value)}
               >
@@ -253,7 +232,7 @@ export default function App() {
             <div className="mb-8">
               <h2 className="text-xl font-semibold mb-2">🤝 Support Tools</h2>
               <select
-                className="w-full p-3 rounded-lg border border-green-300 focus:ring-2 focus:ring-green-400 transition"
+                className="w-full p-3 rounded-lg bg-white border border-green-400 text-gray-800 focus:ring-2 focus:ring-green-300 transition"
                 value={form.support}
                 onChange={(e) => handleChange("support", e.target.value)}
               >
@@ -270,7 +249,7 @@ export default function App() {
               <input
                 type="text"
                 placeholder='e.g. "My pet cat 🐱"'
-                className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-400 transition"
+                className="w-full p-3 rounded-lg bg-white border border-gray-400 text-gray-800 focus:ring-2 focus:ring-indigo-300 transition"
                 value={form.anchor}
                 onChange={(e) => handleChange("anchor", e.target.value)}
               />
@@ -280,7 +259,7 @@ export default function App() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleSubmit}
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-500 hover:opacity-90 text-white font-bold rounded-xl shadow-lg transition"
+              className="w-full py-3 bg-gradient-to-r from-sky-400 to-pink-400 hover:opacity-90 text-white font-bold rounded-xl shadow-lg transition"
             >
               Build My Comfort Kit 🌿
             </motion.button>
@@ -289,14 +268,14 @@ export default function App() {
           // ---------------- PREVIEW + DETECTION PAGE ----------------
           <motion.div
             key="preview"
-            initial={{ opacity: 0, scale: 0.9, y: 40 }}
+            initial={{ opacity: 0, scale: 0.95, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: -40 }}
+            exit={{ opacity: 0, scale: 0.95, y: -30 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="w-full max-w-3xl bg-white/90 backdrop-blur-lg rounded-3xl shadow-2xl p-10 text-center"
+            className="w-full max-w-3xl bg-white/80 backdrop-blur-lg rounded-3xl shadow-2xl p-10 text-center text-gray-800"
           >
-            <h1 className="text-3xl font-extrabold text-green-700 mb-6">
-              🌟 Your Comfort Kit in Action 🌟
+            <h1 className="text-3xl font-extrabold text-sky-600 mb-6">
+              Your Comfort Zone
             </h1>
 
             <video
@@ -311,18 +290,23 @@ export default function App() {
 
             <p className="mt-4 text-xl">
               Current Emotion:{" "}
-              <span className="font-bold text-purple-600">{emotion}</span>
+              <span className="font-bold text-pink-500">{emotion}</span>
             </p>
 
             <p className="mt-2 text-xl">
               Voice Confidence:{" "}
-              <span className="font-bold text-blue-600">{confidence}</span>
+              <span className="font-bold text-blue-500">{confidence}</span>
             </p>
 
             {(emotion === "sad" || confidence.includes("Low")) && (
-              <p className="mt-2 text-red-500 font-semibold">
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="mt-2 text-red-500 font-semibold"
+              >
                 😔 Activating your comfort kit!
-              </p>
+              </motion.p>
             )}
 
             <div className="text-left space-y-4 text-lg mt-6">
@@ -337,7 +321,7 @@ export default function App() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setPreview(false)}
-              className="mt-8 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 hover:opacity-90 text-white rounded-xl font-semibold shadow-lg transition"
+              className="mt-8 px-6 py-3 bg-gradient-to-r from-pink-400 to-sky-400 hover:opacity-90 text-white rounded-xl font-semibold shadow-lg transition"
             >
               Edit Again ✏️
             </motion.button>
