@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 export default function StressReliefZone() {
-  const [mode, setMode] = useState(""); // breathing | bubbles
+  const [mode, setMode] = useState(""); 
   const [bubbles, setBubbles] = useState([]);
   const [phase, setPhase] = useState("Inhale");
   const [timeLeft, setTimeLeft] = useState(4);
+  const [currentAffirmation, setCurrentAffirmation] = useState(0);
+  const audioRef = useRef(null);
 
-  // Phases for breathing (name + duration in sec)
+  // Breathing phases
   const phases = [
     { name: "Inhale", duration: 4 },
     { name: "Hold", duration: 4 },
@@ -14,7 +16,15 @@ export default function StressReliefZone() {
     { name: "Hold", duration: 2 },
   ];
 
-  // Breathing cycle logic
+  // Affirmations
+  const affirmations = [
+    "💖 I am calm and in control.",
+    "🌿 This moment will pass, and I’ll be stronger.",
+    "✨ I am worthy of peace and happiness.",
+    "🔥 I can overcome challenges with courage.",
+  ];
+
+  // Breathing cycle
   useEffect(() => {
     if (mode === "breathing") {
       let i = 0;
@@ -24,8 +34,6 @@ export default function StressReliefZone() {
       const timer = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev > 1) return prev - 1;
-
-          // next phase
           i = (i + 1) % phases.length;
           setPhase(phases[i].name);
           return phases[i].duration;
@@ -36,7 +44,7 @@ export default function StressReliefZone() {
     }
   }, [mode]);
 
-  // Bubble pop challenge logic
+  // Bubble pop logic
   useEffect(() => {
     if (mode === "bubbles") {
       const interval = setInterval(() => {
@@ -44,9 +52,9 @@ export default function StressReliefZone() {
           ...prev,
           {
             id: Date.now(),
-            x: Math.random() * 90, // random left %
-            y: Math.random() * 80, // random top %
-            size: Math.random() * 50 + 30, // 30–80px
+            x: Math.random() * 90,
+            y: Math.random() * 80,
+            size: Math.random() * 50 + 30,
           },
         ]);
       }, 1200);
@@ -58,13 +66,39 @@ export default function StressReliefZone() {
     setBubbles((prev) => prev.filter((b) => b.id !== id));
   };
 
+  // Music mode
+  useEffect(() => {
+    if (mode === "music") {
+      if (audioRef.current) {
+        audioRef.current.play();
+      }
+    } else {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    }
+  }, [mode]);
+
+  // Affirmation cycle
+  useEffect(() => {
+    if (mode === "repeat") {
+      const interval = setInterval(() => {
+        setCurrentAffirmation(
+          (prev) => (prev + 1) % affirmations.length
+        );
+      }, 5000); // change every 5s
+      return () => clearInterval(interval);
+    }
+  }, [mode]);
+
   return (
     <div className="p-6 text-center min-h-screen bg-gradient-to-br from-blue-100 via-white to-purple-100">
       <h1 className="text-3xl font-bold text-purple-700 mb-6">
         Stress Relief Zone 🌿
       </h1>
 
-      {/* Dropdown to choose mode */}
+      {/* Dropdown */}
       <select
         value={mode}
         onChange={(e) => setMode(e.target.value)}
@@ -73,9 +107,11 @@ export default function StressReliefZone() {
         <option value="">-- Select an Activity --</option>
         <option value="breathing">🌬️ Breathing Exercise</option>
         <option value="bubbles">🫧 Bubble Pop Challenge</option>
+        <option value="music">🎶 Listen to Music</option>
+        <option value="repeat">🗣️ Repeat After Me</option>
       </select>
 
-      {/* Breathing exercise */}
+      {/* Breathing */}
       {mode === "breathing" && (
         <div className="flex flex-col items-center justify-center mt-10">
           <div
@@ -96,7 +132,7 @@ export default function StressReliefZone() {
         </div>
       )}
 
-      {/* Bubble pop challenge */}
+      {/* Bubbles */}
       {mode === "bubbles" && (
         <div className="relative w-full h-[400px] border rounded-lg bg-blue-50 overflow-hidden shadow-inner mt-8">
           {bubbles.map((bubble) => (
@@ -118,6 +154,34 @@ export default function StressReliefZone() {
               Tap bubbles to pop! 🫧
             </p>
           )}
+        </div>
+      )}
+
+      {/* Music */}
+      {mode === "music" && (
+        <div className="mt-10">
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">
+            🎶 Relax and enjoy the music...
+          </h2>
+          <audio ref={audioRef} loop>
+            <source src="/music/relax.mp3" type="audio/mpeg" />
+            Your browser does not support audio.
+          </audio>
+        </div>
+      )}
+
+      {/* Repeat After Me */}
+      {mode === "repeat" && (
+        <div className="mt-10 p-6 bg-white shadow-lg rounded-xl max-w-md mx-auto">
+          <h2 className="text-xl font-bold text-purple-600 mb-4">
+            🗣️ Repeat After Me
+          </h2>
+          <p className="text-lg font-semibold text-gray-700">
+            {affirmations[currentAffirmation]}
+          </p>
+          <p className="mt-4 text-gray-500 text-sm">
+            (Say it out loud to yourself 🌟)
+          </p>
         </div>
       )}
     </div>

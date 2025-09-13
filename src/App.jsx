@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as faceapi from "face-api.js";
-import StressReliefZone from "./StressReliefZone.jsx";  // stress relief page
+import StressReliefZone from "./StressReliefZone.jsx"; // stress relief page
 
 export default function App() {
   const [form, setForm] = useState({
@@ -17,6 +17,15 @@ export default function App() {
   const [confidence, setConfidence] = useState("Analyzing...");
   const [activated, setActivated] = useState(false);
   const [manualMode, setManualMode] = useState(""); // dropdown state
+  const [affirmIndex, setAffirmIndex] = useState(0); // track affirmations
+
+  const affirmations = [
+    "I am safe and in control.",
+    "I am calm, I am strong.",
+    "I can handle whatever comes my way.",
+    "I choose peace over worry.",
+    "I believe in myself.",
+  ];
 
   const videoRef = useRef();
   const intervalRef = useRef();
@@ -225,6 +234,7 @@ export default function App() {
                 <option>Reading / Story audio</option>
                 <option>Games / Puzzles</option>
                 <option>Meditation / Journaling</option>
+                <option>🗣️ Repeat After Me</option> {/* ✅ new activity */}
               </select>
             </div>
 
@@ -307,6 +317,33 @@ export default function App() {
               >
                 😔 Activating your comfort kit!
               </motion.p>
+            )}
+
+            {/* ✅ Repeat After Me Activity */}
+            {form.activity === "🗣️ Repeat After Me" && (
+              <div className="mt-8 bg-sky-100 rounded-2xl p-6 shadow-lg">
+                <h2 className="text-2xl font-bold text-sky-700 mb-4">
+                  🗣️ Repeat After Me
+                </h2>
+                <motion.p
+                  key={affirmIndex}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.8 }}
+                  className="text-xl font-semibold text-gray-800"
+                >
+                  {affirmations[affirmIndex]}
+                </motion.p>
+                <button
+                  onClick={() =>
+                    setAffirmIndex((prev) => (prev + 1) % affirmations.length)
+                  }
+                  className="mt-4 px-4 py-2 bg-gradient-to-r from-sky-400 to-blue-500 text-white rounded-xl shadow hover:opacity-90"
+                >
+                  Next Affirmation ➡️
+                </button>
+              </div>
             )}
 
             <div className="text-left space-y-4 text-lg mt-6">
